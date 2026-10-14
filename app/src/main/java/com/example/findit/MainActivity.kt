@@ -4,20 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -25,6 +29,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -36,26 +41,53 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.findit.data.firebase.FirebaseProvider
+import com.example.findit.ui.screens.auth.AuthScreen
 
-private val Emerald = Color(0xFF087F5B)
-private val EmeraldDark = Color(0xFF075E45)
-private val Mint = Color(0xFFE3F5ED)
-private val PageBackground = Color(0xFFF7F9F8)
-private val TextPrimary = Color(0xFF172B25)
-private val TextSecondary = Color(0xFF718079)
-private val BorderColor = Color(0xFFE4EBE7)
+// ----------------------------------------------------
+// FINDIT DESIGN SYSTEM
+// ----------------------------------------------------
+
+private val Midnight = Color(0xFF171A2E)
+private val MidnightSoft = Color(0xFF292D46)
+private val Coral = Color(0xFFFF6B61)
+private val Ivory = Color(0xFFF8F5F0)
+private val White = Color(0xFFFFFFFF)
+private val Slate = Color(0xFF777887)
+private val Border = Color(0xFFE8E3DC)
+private val CoralLight = Color(0xFFFFE8E4)
+private val LavenderLight = Color(0xFFEBE9F7)
+private val GreenLight = Color(0xFFE3F2E8)
+
+private val FindItColorScheme = lightColorScheme(
+    primary = Midnight,
+    onPrimary = White,
+    secondary = Coral,
+    onSecondary = Midnight,
+    background = Ivory,
+    onBackground = Midnight,
+    surface = White,
+    onSurface = Midnight,
+    outline = Border
+)
+
+// ----------------------------------------------------
+// ACTIVITY
+// ----------------------------------------------------
 
 class MainActivity : ComponentActivity() {
 
@@ -63,10 +95,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MaterialTheme {
+            MaterialTheme(
+                colorScheme = FindItColorScheme
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = PageBackground
+                    color = Ivory
                 ) {
                     FindItApp()
                 }
@@ -75,58 +109,74 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// ----------------------------------------------------
+// NAVIGATION
+// ----------------------------------------------------
+
 private enum class AppScreen(
     val label: String,
-    val icon: String
+    val symbol: String
 ) {
     HOME("Home", "⌂"),
     EXPLORE("Explore", "⌕"),
     REPORTS("My Reports", "▤"),
-    PROFILE("Profile", "◉")
+    PROFILE("Profile", "○")
 }
 
 @Composable
 private fun FindItApp() {
-    var selectedScreen by remember {
-        mutableStateOf(AppScreen.HOME)
+
+    // Firebase persists authenticated sessions across launches.
+    var isAuthenticated by rememberSaveable {
+        mutableStateOf(
+            FirebaseProvider.auth.currentUser != null
+        )
     }
 
-    var reportType by remember {
-        mutableStateOf("LOST")
+    var selectedScreenName by rememberSaveable {
+        mutableStateOf(AppScreen.HOME.name)
     }
 
-    var showReportForm by remember {
+    var showReportForm by rememberSaveable {
         mutableStateOf(false)
     }
 
+    var reportType by rememberSaveable {
+        mutableStateOf("LOST")
+    }
+
+    val selectedScreen = AppScreen.valueOf(selectedScreenName)
+
+    // Authentication gate: no home access without a session.
+    if (!isAuthenticated) {
+        AuthScreen(
+            onAuthenticated = {
+                isAuthenticated =
+                    FirebaseProvider.auth.currentUser != null
+
+                selectedScreenName = AppScreen.HOME.name
+                showReportForm = false
+            }
+        )
+        return
+    }
+
     Scaffold(
-        containerColor = PageBackground,
+        containerColor = Ivory,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            FindItTopBar()
+            if (!showReportForm) {
+                FindItTopBar()
+            }
         },
         bottomBar = {
             if (!showReportForm) {
-                NavigationBar(
-                    containerColor = Color.White
-                ) {
-                    AppScreen.entries.forEach { screen ->
-                        NavigationBarItem(
-                            selected = selectedScreen == screen,
-                            onClick = {
-                                selectedScreen = screen
-                            },
-                            icon = {
-                                Text(
-                                    text = screen.icon,
-                                    fontSize = 23.sp
-                                )
-                            },
-                            label = {
-                                Text(screen.label)
-                            }
-                        )
+                FindItBottomBar(
+                    selectedScreen = selectedScreen,
+                    onScreenSelected = {
+                        selectedScreenName = it.name
                     }
-                }
+                )
             }
         }
     ) { innerPadding ->
@@ -137,6 +187,7 @@ private fun FindItApp() {
                 .padding(innerPadding)
         ) {
             if (showReportForm) {
+
                 ReportFormScreen(
                     initialType = reportType,
                     onBack = {
@@ -146,36 +197,56 @@ private fun FindItApp() {
                         reportType = it
                     }
                 )
+
             } else {
+
                 when (selectedScreen) {
-                    AppScreen.HOME -> HomeScreen(
-                        onReportLost = {
-                            reportType = "LOST"
-                            showReportForm = true
-                        },
-                        onReportFound = {
-                            reportType = "FOUND"
-                            showReportForm = true
-                        },
-                        onExplore = {
-                            selectedScreen = AppScreen.EXPLORE
-                        }
-                    )
+
+                    AppScreen.HOME -> {
+                        HomeScreen(
+                            onReportLost = {
+                                reportType = "LOST"
+                                showReportForm = true
+                            },
+                            onReportFound = {
+                                reportType = "FOUND"
+                                showReportForm = true
+                            },
+                            onExplore = {
+                                selectedScreenName =
+                                    AppScreen.EXPLORE.name
+                            }
+                        )
+                    }
 
                     AppScreen.EXPLORE -> ExploreScreen()
 
                     AppScreen.REPORTS -> MyReportsScreen()
 
-                    AppScreen.PROFILE -> ProfileScreen()
+                    AppScreen.PROFILE -> ProfileScreen(
+                        onSignOut = {
+                            FirebaseProvider.auth.signOut()
+
+                            isAuthenticated = false
+                            selectedScreenName =
+                                AppScreen.HOME.name
+                            showReportForm = false
+                        }
+                    )
                 }
             }
         }
     }
 }
 
+// ----------------------------------------------------
+// TOP BAR
+// ----------------------------------------------------
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FindItTopBar() {
+
     TopAppBar(
         title = {
             Row(
@@ -183,43 +254,101 @@ private fun FindItTopBar() {
             ) {
                 Box(
                     modifier = Modifier
-                        .size(39.dp)
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(Emerald),
+                        .size(37.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Midnight),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "F",
-                        color = Color.White,
-                        fontSize = 23.sp,
-                        fontWeight = FontWeight.Bold
+                        text = "f.",
+                        fontSize = 27.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
+                        color = Coral
                     )
                 }
 
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(11.dp))
 
                 Column {
                     Text(
-                        text = "FindIt",
-                        fontSize = 21.sp,
+                        text = "findit.",
+                        fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        fontSize = 22.sp,
+                        color = Midnight
                     )
 
                     Text(
                         text = "LOVELY PROFESSIONAL UNIVERSITY",
-                        fontSize = 9.sp,
-                        letterSpacing = 1.sp,
-                        color = TextSecondary
+                        fontSize = 8.sp,
+                        letterSpacing = 1.4.sp,
+                        color = Slate
                     )
                 }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
+            containerColor = Ivory
         )
     )
 }
+
+// ----------------------------------------------------
+// BOTTOM NAVIGATION
+// ----------------------------------------------------
+
+@Composable
+private fun FindItBottomBar(
+    selectedScreen: AppScreen,
+    onScreenSelected: (AppScreen) -> Unit
+) {
+
+    NavigationBar(
+        containerColor = White,
+        contentColor = Midnight,
+        tonalElevation = 0.dp
+    ) {
+
+        AppScreen.entries.forEach { screen ->
+
+            NavigationBarItem(
+                selected = selectedScreen == screen,
+                onClick = {
+                    onScreenSelected(screen)
+                },
+                icon = {
+                    Text(
+                        text = screen.symbol,
+                        fontSize = 23.sp,
+                        fontWeight = if (selectedScreen == screen) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Normal
+                        }
+                    )
+                },
+                label = {
+                    Text(
+                        text = screen.label,
+                        fontSize = 10.sp
+                    )
+                },
+                colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                    selectedIconColor = Coral,
+                    selectedTextColor = Midnight,
+                    indicatorColor = CoralLight,
+                    unselectedIconColor = Slate,
+                    unselectedTextColor = Slate
+                )
+            )
+        }
+    }
+}
+
+// ----------------------------------------------------
+// HOME SCREEN
+// ----------------------------------------------------
 
 @Composable
 private fun HomeScreen(
@@ -227,41 +356,45 @@ private fun HomeScreen(
     onReportFound: () -> Unit,
     onExplore: () -> Unit
 ) {
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            horizontal = 20.dp,
-            vertical = 18.dp
+            horizontal = 22.dp,
+            vertical = 24.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(26.dp)
     ) {
+
         item {
             Column {
+
                 Text(
-                    text = "YOUR CAMPUS, CONNECTED",
-                    fontSize = 11.sp,
-                    letterSpacing = 1.5.sp,
+                    text = "LPU  /  LOST & FOUND",
+                    fontSize = 10.sp,
+                    letterSpacing = 2.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Emerald
+                    color = Coral
                 )
 
-                Spacer(Modifier.height(7.dp))
+                Spacer(Modifier.height(18.dp))
 
                 Text(
-                    text = "Lost something?\nLet's find it.",
-                    fontSize = 31.sp,
-                    lineHeight = 37.sp,
+                    text = "Some things\nfind their way.",
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 39.sp,
+                    lineHeight = 46.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = Midnight
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
 
                 Text(
-                    text = "A little help from your campus community goes a long way.",
+                    text = "Lost something on campus? Let's help it find its way home.",
                     fontSize = 14.sp,
-                    lineHeight = 21.sp,
-                    color = TextSecondary
+                    lineHeight = 22.sp,
+                    color = Slate
                 )
             }
         }
@@ -274,304 +407,268 @@ private fun HomeScreen(
 
         item {
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(11.dp)
             ) {
+
                 Text(
-                    text = "What brings you here?",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    text = "What happened?",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Midnight
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // Primary action
+                Button(
+                    onClick = onReportLost,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(62.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Midnight,
+                        contentColor = White
+                    ),
+                    contentPadding = PaddingValues(
+                        horizontal = 19.dp
+                    )
                 ) {
-                    ActionCard(
-                        modifier = Modifier.weight(1f),
-                        emoji = "🔎",
-                        title = "I lost something",
-                        subtitle = "Find your belongings",
-                        background = Mint,
-                        onClick = onReportLost
-                    )
 
-                    ActionCard(
-                        modifier = Modifier.weight(1f),
-                        emoji = "🤝",
-                        title = "I found something",
-                        subtitle = "Help its owner",
-                        background = Color(0xFFFFF0DA),
-                        onClick = onReportFound
-                    )
-                }
-            }
-        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
 
-        item {
-            AiComingSoonCard()
-        }
-
-        item {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Recently reported",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-
-                    TextButton(onClick = onExplore) {
                         Text(
-                            text = "Explore all →",
-                            color = Emerald
+                            text = "I lost something",
+                            modifier = Modifier.weight(1f),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Text(
+                            text = "↗",
+                            fontSize = 22.sp,
+                            color = Coral
                         )
                     }
                 }
 
-                Spacer(Modifier.height(6.dp))
+                // Secondary action
+                OutlinedButton(
+                    onClick = onReportFound,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(62.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Midnight
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Border
+                    ),
+                    contentPadding = PaddingValues(
+                        horizontal = 19.dp
+                    )
+                ) {
 
-                EmptyReportsCard()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        Text(
+                            text = "I found something",
+                            modifier = Modifier.weight(1f),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Text(
+                            text = "↗",
+                            fontSize = 22.sp,
+                            color = Coral
+                        )
+                    }
+                }
             }
         }
 
         item {
-            CampusInfoCard()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+
+                Column {
+                    Text(
+                        text = "Around campus",
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Midnight
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Text(
+                        text = "Recently reported items",
+                        fontSize = 12.sp,
+                        color = Slate
+                    )
+                }
+
+                TextButton(
+                    onClick = onExplore
+                ) {
+                    Text(
+                        text = "View all ↗",
+                        color = Coral
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            EmptyReportsCard()
+        }
+
+        item {
+            HorizontalDivider(color = Border)
+
+            Spacer(Modifier.height(5.dp))
+
+            Text(
+                text = "MADE FOR LPU  ·  MADE FOR EACH OTHER",
+                modifier = Modifier.fillMaxWidth(),
+                fontSize = 9.sp,
+                letterSpacing = 1.2.sp,
+                color = Slate
+            )
         }
     }
 }
+
+// ----------------------------------------------------
+// SEARCH COMPONENT
+// ----------------------------------------------------
 
 @Composable
 private fun SearchBarPlaceholder(
     onClick: () -> Unit
 ) {
-    OutlinedButton(
-        onClick = onClick,
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(54.dp),
-        shape = RoundedCornerShape(16.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Color.White,
-            contentColor = TextSecondary
-        )
+            .clip(RoundedCornerShape(15.dp))
+            .background(White)
+            .clickable(onClick = onClick)
+            .padding(
+                horizontal = 16.dp,
+                vertical = 16.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("⌕", fontSize = 24.sp)
-            Spacer(Modifier.width(10.dp))
-            Text(
-                "Search wallets, books, electronics...",
-                fontSize = 13.sp
-            )
-        }
+
+        Text(
+            text = "⌕",
+            fontSize = 25.sp,
+            color = Coral
+        )
+
+        Spacer(Modifier.width(12.dp))
+
+        Text(
+            text = "Search lost & found items",
+            fontSize = 13.sp,
+            color = Slate
+        )
+
+        Spacer(Modifier.weight(1f))
+
+        Text(
+            text = "→",
+            fontSize = 18.sp,
+            color = Midnight
+        )
     }
 }
 
-@Composable
-private fun ActionCard(
-    modifier: Modifier = Modifier,
-    emoji: String,
-    title: String,
-    subtitle: String,
-    background: Color,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = modifier.height(158.dp),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = background
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(15.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = emoji,
-                fontSize = 27.sp
-            )
-
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 15.sp,
-                    lineHeight = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    color = TextSecondary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AiComingSoonCard() {
-    Card(
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = EmeraldDark
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(49.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(Color.White.copy(alpha = 0.13f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("✦", fontSize = 29.sp, color = Color.White)
-            }
-
-            Spacer(Modifier.width(14.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "AI Match Assistant",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-
-                Spacer(Modifier.height(5.dp))
-
-                Text(
-                    text = "Smart image matching is coming in Version 2.0.",
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    text = "COMING SOON",
-                    fontSize = 10.sp,
-                    letterSpacing = 1.2.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFA7F3D0)
-                )
-            }
-        }
-    }
-}
+// ----------------------------------------------------
+// EMPTY STATE
+// ----------------------------------------------------
 
 @Composable
 private fun EmptyReportsCard() {
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(19.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp
         )
     ) {
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(23.dp),
+            horizontalAlignment = Alignment.Start
         ) {
+
             Box(
                 modifier = Modifier
-                    .size(62.dp)
-                    .clip(CircleShape)
-                    .background(Mint),
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(LavenderLight),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🎒", fontSize = 29.sp)
+                Text(
+                    text = "↗",
+                    fontSize = 25.sp,
+                    color = Midnight
+                )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(15.dp))
 
             Text(
-                text = "Your campus story starts here",
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                text = "Nothing here. Yet.",
+                fontFamily = FontFamily.Serif,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold,
+                color = Midnight
             )
 
-            Spacer(Modifier.height(5.dp))
+            Spacer(Modifier.height(7.dp))
 
             Text(
-                text = "New reports will appear here once students start posting.",
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
-                color = TextSecondary
+                text = "New lost and found reports will appear here once students start posting.",
+                fontSize = 13.sp,
+                lineHeight = 20.sp,
+                color = Slate
             )
         }
     }
 }
 
-@Composable
-private fun CampusInfoCard() {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(17.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("📍", fontSize = 24.sp)
-
-            Spacer(Modifier.width(12.dp))
-
-            Column {
-                Text(
-                    text = "Made for LPU",
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-
-                Text(
-                    text = "One campus. One community. Helping things find their way home.",
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
-                    color = TextSecondary
-                )
-            }
-        }
-    }
-}
+// ----------------------------------------------------
+// EXPLORE SCREEN
+// ----------------------------------------------------
 
 @Composable
 private fun ExploreScreen() {
-    var searchQuery by remember {
+
+    var searchQuery by rememberSaveable {
         mutableStateOf("")
     }
 
-    var selectedCategory by remember {
+    var selectedCategory by rememberSaveable {
         mutableStateOf("All")
     }
 
@@ -587,35 +684,48 @@ private fun ExploreScreen() {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = PaddingValues(22.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+
         item {
             Text(
-                text = "Explore items",
-                fontSize = 28.sp,
+                text = "Explore.",
+                fontFamily = FontFamily.Serif,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = Midnight
             )
 
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(7.dp))
 
             Text(
-                text = "Discover what's been lost or found around LPU.",
+                text = "Every report is a chance to reconnect someone with something they lost.",
                 fontSize = 14.sp,
-                color = TextSecondary
+                lineHeight = 21.sp,
+                color = Slate
             )
         }
 
         item {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = {
+                    searchQuery = it
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                label = { Text("Search items") },
-                placeholder = { Text("Try 'black wallet'") }
+                label = {
+                    Text("Search items")
+                },
+                placeholder = {
+                    Text("Try 'black wallet'")
+                },
+                shape = RoundedCornerShape(15.dp),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Coral,
+                    focusedLabelColor = Coral
+                )
             )
         }
 
@@ -623,23 +733,40 @@ private fun ExploreScreen() {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(categories.size) { index ->
-                    val category = categories[index]
 
-                    if (selectedCategory == category) {
+                items(categories) { category ->
+
+                    val selected = selectedCategory == category
+
+                    if (selected) {
                         Button(
-                            onClick = { selectedCategory = category },
+                            onClick = {
+                                selectedCategory = category
+                            },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Emerald
+                                containerColor = Midnight
+                            ),
+                            contentPadding = PaddingValues(
+                                horizontal = 15.dp,
+                                vertical = 8.dp
                             )
                         ) {
                             Text(category)
                         }
                     } else {
                         OutlinedButton(
-                            onClick = { selectedCategory = category }
+                            onClick = {
+                                selectedCategory = category
+                            },
+                            contentPadding = PaddingValues(
+                                horizontal = 15.dp,
+                                vertical = 8.dp
+                            )
                         ) {
-                            Text(category)
+                            Text(
+                                text = category,
+                                color = Slate
+                            )
                         }
                     }
                 }
@@ -652,13 +779,17 @@ private fun ExploreScreen() {
 
         item {
             Text(
-                text = "Reports from LPU students will appear here.",
-                fontSize = 13.sp,
-                color = TextSecondary
+                text = "Live listings will appear here once Firestore is connected.",
+                fontSize = 12.sp,
+                color = Slate
             )
         }
     }
 }
+
+// ----------------------------------------------------
+// REPORT FORM
+// ----------------------------------------------------
 
 @Composable
 private fun ReportFormScreen(
@@ -666,44 +797,69 @@ private fun ReportFormScreen(
     onBack: () -> Unit,
     onTypeChange: (String) -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf("") }
 
-    var type by remember(initialType) {
+    var title by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var description by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var category by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var location by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var date by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var type by rememberSaveable {
         mutableStateOf(initialType)
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(15.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(),
+        contentPadding = PaddingValues(22.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+
         item {
             TextButton(onClick = onBack) {
-                Text("← Back", color = Emerald)
+                Text(
+                    text = "← Back",
+                    color = Coral
+                )
             }
-
-            Text(
-                text = if (type == "LOST") {
-                    "Report a lost item"
-                } else {
-                    "Report a found item"
-                },
-                fontSize = 27.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
 
             Spacer(Modifier.height(5.dp))
 
             Text(
-                text = "Help the LPU community identify and recover belongings.",
-                color = TextSecondary,
+                text = if (type == "LOST") {
+                    "Lost something?"
+                } else {
+                    "Found something?"
+                },
+                fontFamily = FontFamily.Serif,
+                fontSize = 32.sp,
+                lineHeight = 38.sp,
+                fontWeight = FontWeight.Bold,
+                color = Midnight
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = "Share a few details so the right person can find it.",
                 fontSize = 14.sp,
-                lineHeight = 20.sp
+                lineHeight = 21.sp,
+                color = Slate
             )
         }
 
@@ -712,6 +868,7 @@ private fun ReportFormScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+
                 Button(
                     onClick = {
                         type = "LOST"
@@ -720,13 +877,18 @@ private fun ReportFormScreen(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (type == "LOST") {
-                            Emerald
+                            Midnight
                         } else {
-                            Color.LightGray
+                            LavenderLight
+                        },
+                        contentColor = if (type == "LOST") {
+                            White
+                        } else {
+                            Midnight
                         }
                     )
                 ) {
-                    Text("I lost it")
+                    Text("Lost")
                 }
 
                 Button(
@@ -737,99 +899,98 @@ private fun ReportFormScreen(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (type == "FOUND") {
-                            Emerald
+                            Coral
                         } else {
-                            Color.LightGray
-                        }
+                            CoralLight
+                        },
+                        contentColor = Midnight
                     )
                 ) {
-                    Text("I found it")
+                    Text("Found")
                 }
             }
         }
 
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+
+                FindItTextField(
                     value = title,
-                    onValueChange = { title = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Item name *") },
-                    placeholder = { Text("e.g. Black backpack") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp)
+                    onValueChange = {
+                        title = it
+                    },
+                    label = "Item name *",
+                    placeholder = "e.g. Black backpack"
                 )
 
-                OutlinedTextField(
+                FindItTextField(
                     value = category,
-                    onValueChange = { category = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Category *") },
-                    placeholder = { Text("e.g. Bags, Electronics, Books") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp)
+                    onValueChange = {
+                        category = it
+                    },
+                    label = "Category *",
+                    placeholder = "e.g. Electronics, Bags, Books"
                 )
 
-                OutlinedTextField(
+                FindItTextField(
                     value = description,
-                    onValueChange = { description = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Description") },
-                    placeholder = {
-                        Text("Color, brand, stickers, or other details")
+                    onValueChange = {
+                        description = it
                     },
-                    minLines = 3,
-                    shape = RoundedCornerShape(14.dp)
+                    label = "Description",
+                    placeholder = "Colour, brand, stickers, distinguishing details",
+                    singleLine = false
                 )
 
-                OutlinedTextField(
+                FindItTextField(
                     value = location,
-                    onValueChange = { location = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Campus location *") },
-                    placeholder = {
-                        Text("e.g. Library, Block 34, Cafeteria")
+                    onValueChange = {
+                        location = it
                     },
-                    shape = RoundedCornerShape(14.dp)
+                    label = "LPU location *",
+                    placeholder = "e.g. Library, Academic Block"
                 )
 
-                OutlinedTextField(
+                FindItTextField(
                     value = date,
-                    onValueChange = { date = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Date") },
-                    placeholder = { Text("e.g. 14 Oct 2026") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp)
+                    onValueChange = {
+                        date = it
+                    },
+                    label = "Date",
+                    placeholder = "e.g. 14 Oct 2026"
                 )
             }
         }
 
         item {
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(17.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Mint
+                    containerColor = LavenderLight
                 )
             ) {
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(17.dp)
                 ) {
+
                     Text(
-                        text = "📷 Item photograph",
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        text = "Add a photograph",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Midnight
                     )
 
                     Spacer(Modifier.height(5.dp))
 
                     Text(
-                        text = "We'll add photo selection and secure Cloudinary uploads next.",
+                        text = "Cloudinary image uploads will be connected in the next implementation step.",
                         fontSize = 12.sp,
                         lineHeight = 18.sp,
-                        color = TextSecondary
+                        color = Slate
                     )
                 }
             }
@@ -838,102 +999,183 @@ private fun ReportFormScreen(
         item {
             Button(
                 onClick = {
-                    // Firebase submission will be implemented next.
+                    // Firestore publishing will be connected next.
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Emerald
-                ),
                 enabled = title.isNotBlank() &&
                         category.isNotBlank() &&
-                        location.isNotBlank()
+                        location.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(15.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Midnight
+                )
             ) {
                 Text(
                     text = "Publish report",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
 
+            Spacer(Modifier.height(5.dp))
+
             Text(
-                text = "Publishing will be enabled after we connect the form to Firestore.",
-                modifier = Modifier.padding(top = 8.dp),
+                text = "Your report won't be published until database integration is complete.",
                 fontSize = 11.sp,
-                color = TextSecondary
+                lineHeight = 17.sp,
+                color = Slate
             )
         }
     }
 }
 
 @Composable
+private fun FindItTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    singleLine: Boolean = true
+) {
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = {
+            Text(label)
+        },
+        placeholder = {
+            Text(placeholder)
+        },
+        singleLine = singleLine,
+        minLines = if (singleLine) 1 else 3,
+        shape = RoundedCornerShape(14.dp),
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Coral,
+            focusedLabelColor = Coral,
+            unfocusedBorderColor = Border
+        )
+    )
+}
+
+// ----------------------------------------------------
+// MY REPORTS
+// ----------------------------------------------------
+
+@Composable
 private fun MyReportsScreen() {
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(25.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.Start
     ) {
-        Text("▤", fontSize = 45.sp)
-
-        Spacer(Modifier.height(15.dp))
 
         Text(
-            text = "My Reports",
-            fontSize = 25.sp,
+            text = "Your activity.",
+            fontFamily = FontFamily.Serif,
+            fontSize = 35.sp,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary
+            color = Midnight
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
         Text(
-            text = "Your lost and found reports will appear here after we connect Firestore.",
-            color = TextSecondary,
+            text = "Everything you've reported, all in one place.",
             fontSize = 14.sp,
-            lineHeight = 21.sp
+            lineHeight = 21.sp,
+            color = Slate
         )
+
+        Spacer(Modifier.height(24.dp))
+
+        EmptyReportsCard()
     }
 }
 
+// ----------------------------------------------------
+// PROFILE
+// ----------------------------------------------------
+
 @Composable
-private fun ProfileScreen() {
+private fun ProfileScreen(
+    onSignOut: () -> Unit
+) {
+
+    val user = FirebaseProvider.auth.currentUser
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.Start
     ) {
+
         Box(
             modifier = Modifier
-                .size(88.dp)
-                .clip(CircleShape)
-                .background(Mint),
+                .size(68.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(CoralLight),
             contentAlignment = Alignment.Center
         ) {
-            Text("👤", fontSize = 40.sp)
+            Text(
+                text = user?.email
+                    ?.firstOrNull()
+                    ?.uppercase()
+                    ?: "F",
+                fontSize = 29.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif,
+                color = Midnight
+            )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(22.dp))
 
         Text(
-            text = "Welcome to FindIt",
-            fontSize = 24.sp,
+            text = "Your space.",
+            fontFamily = FontFamily.Serif,
+            fontSize = 35.sp,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary
+            color = Midnight
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(9.dp))
 
         Text(
-            text = "Your LPU profile and authentication will be connected next.",
-            color = TextSecondary,
+            text = user?.email ?: "No account information",
             fontSize = 14.sp,
-            lineHeight = 21.sp
+            color = Slate
         )
+
+        Spacer(Modifier.height(7.dp))
+
+        Text(
+            text = "Lovely Professional University",
+            fontSize = 12.sp,
+            color = Slate
+        )
+
+        Spacer(Modifier.height(30.dp))
+
+        Button(
+            onClick = onSignOut,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(15.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Midnight
+            )
+        ) {
+            Text("Sign out")
+        }
     }
 }
