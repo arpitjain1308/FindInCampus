@@ -356,197 +356,151 @@ private fun HomeScreen(
     onReportFound: () -> Unit,
     onExplore: () -> Unit
 ) {
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            horizontal = 22.dp,
-            vertical = 24.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(26.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Ivory)
+            .padding(horizontal = 26.dp)
+            .padding(top = 34.dp, bottom = 22.dp)
     ) {
 
-        item {
-            Column {
+        // Main headline
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "LOST & FOUND, REIMAGINED",
+                fontSize = 10.sp,
+                letterSpacing = 2.sp,
+                fontWeight = FontWeight.Bold,
+                color = Coral
+            )
 
-                Text(
-                    text = "LPU  /  LOST & FOUND",
-                    fontSize = 10.sp,
-                    letterSpacing = 2.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Coral
-                )
+            Spacer(Modifier.height(20.dp))
 
-                Spacer(Modifier.height(18.dp))
+            Text(
+                text = "Lost something?\nLet's bring it\nhome.",
+                fontSize = 43.sp,
+                lineHeight = 49.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif,
+                color = Midnight
+            )
 
-                Text(
-                    text = "Some things\nfind their way.",
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 39.sp,
-                    lineHeight = 46.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Midnight
-                )
+            Spacer(Modifier.height(18.dp))
 
-                Spacer(Modifier.height(12.dp))
-
-                Text(
-                    text = "Lost something on campus? Let's help it find its way home.",
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp,
-                    color = Slate
-                )
-            }
-        }
-
-        item {
-            SearchBarPlaceholder(
-                onClick = onExplore
+            Text(
+                text = "Every lost item has a way back. Let's find yours.",
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                color = Slate
             )
         }
 
-        item {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(11.dp)
+        // Primary actions anchored at the bottom
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
+
+            Button(
+                onClick = onReportLost,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(68.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Midnight,
+                    contentColor = White
+                ),
+                contentPadding = PaddingValues(horizontal = 21.dp)
             ) {
-
-                Text(
-                    text = "What happened?",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Midnight
-                )
-
-                // Primary action
-                Button(
-                    onClick = onReportLost,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(62.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Midnight,
-                        contentColor = White
-                    ),
-                    contentPadding = PaddingValues(
-                        horizontal = 19.dp
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(
+                        text = "＋",
+                        fontSize = 27.sp,
+                        color = Coral
+                    )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                    Spacer(Modifier.width(13.dp))
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.Start
                     ) {
-
                         Text(
-                            text = "I lost something",
-                            modifier = Modifier.weight(1f),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
+                            text = "I LOST SOMETHING",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.6.sp
                         )
 
                         Text(
-                            text = "↗",
-                            fontSize = 22.sp,
-                            color = Coral
+                            text = "Help me find it",
+                            fontSize = 11.sp,
+                            color = White.copy(alpha = 0.72f)
                         )
                     }
-                }
-
-                // Secondary action
-                OutlinedButton(
-                    onClick = onReportFound,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(62.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Midnight
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        Border
-                    ),
-                    contentPadding = PaddingValues(
-                        horizontal = 19.dp
-                    )
-                ) {
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-
-                        Text(
-                            text = "I found something",
-                            modifier = Modifier.weight(1f),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Text(
-                            text = "↗",
-                            fontSize = 22.sp,
-                            color = Coral
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-
-                Column {
-                    Text(
-                        text = "Around campus",
-                        fontFamily = FontFamily.Serif,
-                        fontSize = 25.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Midnight
-                    )
-
-                    Spacer(Modifier.height(4.dp))
 
                     Text(
-                        text = "Recently reported items",
-                        fontSize = 12.sp,
-                        color = Slate
-                    )
-                }
-
-                TextButton(
-                    onClick = onExplore
-                ) {
-                    Text(
-                        text = "View all ↗",
+                        text = "↗",
+                        fontSize = 23.sp,
                         color = Coral
                     )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = onReportFound,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(68.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Coral,
+                    contentColor = Midnight
+                ),
+                contentPadding = PaddingValues(horizontal = 21.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "↗",
+                        fontSize = 25.sp
+                    )
 
-            EmptyReportsCard()
+                    Spacer(Modifier.width(15.dp))
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = "I FOUND SOMETHING",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.6.sp
+                        )
+
+                        Text(
+                            text = "Help it find its owner",
+                            fontSize = 11.sp,
+                            color = Midnight.copy(alpha = 0.72f)
+                        )
+                    }
+                }
+            }
         }
 
-        item {
-            HorizontalDivider(color = Border)
-
-            Spacer(Modifier.height(5.dp))
-
-            Text(
-                text = "MADE FOR LPU  ·  MADE FOR EACH OTHER",
-                modifier = Modifier.fillMaxWidth(),
-                fontSize = 9.sp,
-                letterSpacing = 1.2.sp,
-                color = Slate
-            )
-        }
+        Spacer(Modifier.height(12.dp))
     }
 }
 
